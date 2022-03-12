@@ -252,14 +252,7 @@ def main():
     while run:
         grid = create_grid(locked_positions)
         possible_grids = get_all_possible_moves(grid,current_piece)
-
-        # for i in range(len(possible_grids)):
-        #     tuple = possible_grids[i] 
-        #     draw_window(win,tuple[0],next_piece)
-        #     sleep(0.2)
-
-        
-        render(grid)
+        render(grid)        
         
         i = random.randrange(len(possible_grids))
         tuple = possible_grids[i]
@@ -570,10 +563,10 @@ def make_move(possible_moves,action):
     return grid, reward, done
 
 def render(grid):
-    img = get_image(grid)
-    img = img.resize((300,600))
-    cv2.imshow("image", np.array(img)) 
-    cv2.waitKey(1000)
+    rgb,bin = get_image(grid)
+    rgb = cv2.resize(rgb,(200,400),interpolation=cv2.INTER_AREA)
+    cv2.imshow("image", rgb) 
+    cv2.waitKey(500)
     cv2.destroyAllWindows()
 
 def get_image(grid):
@@ -582,9 +575,13 @@ def get_image(grid):
         for j in range(len(grid[i])):
             processed_grid[i][j] = grid[i][j]
     rgb_img = Image.fromarray(processed_grid, 'RGB')
-    # binary_img= cv2.cvtColor(rgb_img,cv2.COLOR_BGR2GRAY)
-    return rgb_img
+    rgb_img = np.asarray(rgb_img)
+    rgb_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2RGB)	
+    gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
+    _,binary_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY)
+    return rgb_img,binary_img
 
 # win = pygame.display.set_mode((s_width,s_height))
 # pygame.display.set_caption('Tetris')
+
 main()
