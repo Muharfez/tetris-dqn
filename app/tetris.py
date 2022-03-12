@@ -1,6 +1,7 @@
 from __future__ import annotations
 from cmath import e, sqrt
 from enum import Enum
+from time import sleep
 from typing import Dict, List
 from queue import PriorityQueue
 import pygame
@@ -236,7 +237,7 @@ def draw_window(surface,grid,next_piece):
     pygame.display.update()
     pass
  
-def main(win):
+def main():
     grid  = create_grid()
     change_piece = False
     score = 0 
@@ -245,7 +246,7 @@ def main(win):
     current_piece = get_shape()
     next_piece = get_shape()
     locked_positions = {}
-    clock = pygame.time.Clock()
+    # clock = pygame.time.Clock()
     fall_time = 0
 
     while run:
@@ -255,6 +256,10 @@ def main(win):
         # for i in range(len(possible_grids)):
         #     tuple = possible_grids[i] 
         #     draw_window(win,tuple[0],next_piece)
+        #     sleep(0.2)
+
+        
+        render(grid)
         
         i = random.randrange(len(possible_grids))
         tuple = possible_grids[i]
@@ -414,22 +419,25 @@ def find_paths(grid : List,current_piece : Piece, pixel,checked):
                     temp_piece.y = target_y - y_diff
 
                     if(check_variation((temp_piece.x,temp_piece.y,abs(temp_piece.rotation % len(temp_piece.shape))),checked)):
-                        continue        
+                        continue
+
                     checked.append((temp_piece.x,temp_piece.y,abs(temp_piece.rotation % len(temp_piece.shape))))
+                    
                     if(not valid_space(temp_piece,grid)):
                         continue
 
                     target_piece = temp_piece.copy()
                     stored_grid = copy_grid(grid)
                     stored_locked = {}
+
                     for row in range(len(stored_grid)):
                         for column in range(len(stored_grid[row])):
                             if (stored_grid[row][column]!=(0,0,0)):
                                 stored_locked[(column,row)] = stored_grid[row][column]
+
                     shape_pos = convert_shape_format(target_piece)
 
-                    for index in range(len(shape_pos)): 
-                        x, y = shape_pos[index]
+                    for _,(x,y) in enumerate(shape_pos):  
                         stored_locked[(x,y)] = target_piece.color
                         if y > -1:
                             stored_grid[y][x] =  target_piece.color
@@ -437,9 +445,10 @@ def find_paths(grid : List,current_piece : Piece, pixel,checked):
                     temp_piece = current_piece.copy()
                     priority = round(measure_shape_distance(temp_piece,target_piece),5)
                     item = (moves.copy(),temp_piece.copy())
-                    priority_queue.put((priority,random.randrange(0,1000000),item))    
+                    priority_queue.put((priority,random.randrange(0,10000000,1),item))
+
                     visited = []
-                    while not priority_queue.qsize() == 0 :
+                    while not priority_queue.qsize() == 0 and len(visited) <= 90:
                         entry = priority_queue.get()
                         state = entry[2]
                         moves = state[0]
@@ -447,11 +456,13 @@ def find_paths(grid : List,current_piece : Piece, pixel,checked):
 
                         if (temp_piece.x + x_diff == target_x and temp_piece.y + y_diff == target_y):
                             path_found = True
-                            break   
+                            break 
+
                         if(check_variation((temp_piece.x,temp_piece.y,abs(temp_piece.rotation % len(temp_piece.shape))),visited)):
                             continue
 
                         visited.append((temp_piece.x,temp_piece.y,abs(temp_piece.rotation % len(temp_piece.shape))))
+                        
                         temp_piece.x -= 1
                         if(valid_space(temp_piece,grid)):
                             moves.append(Move.LEFT)
@@ -479,7 +490,6 @@ def find_paths(grid : List,current_piece : Piece, pixel,checked):
                             moves.pop()
                         temp_piece.y -= 1
 
-                        
                         temp_piece.rotation += 1
                         if(valid_space(temp_piece,grid)):
                             moves.append(Move.ROTATE)
@@ -560,15 +570,21 @@ def make_move(possible_moves,action):
     return grid, reward, done
 
 def render(grid):
-    img, _ = get_image(grid)
+    img = get_image(grid)
+    img = img.resize((300,600))
     cv2.imshow("image", np.array(img)) 
-    cv2.waitKey(1)
+    cv2.waitKey(1000)
+    cv2.destroyAllWindows()
 
 def get_image(grid):
-    rgb_img = Image.fromarray(grid, 'RGB')
-    binary_img= cv2.cvtColor(rgb_img,cv2.COLOR_BGR2GRAY)
-    return rgb_img, binary_img
+    processed_grid = np.zeros((20,10,3), dtype=np.uint8)
+    for i in range(len(grid)):
+        for j in range(len(grid[i])):
+            processed_grid[i][j] = grid[i][j]
+    rgb_img = Image.fromarray(processed_grid, 'RGB')
+    # binary_img= cv2.cvtColor(rgb_img,cv2.COLOR_BGR2GRAY)
+    return rgb_img
 
 # win = pygame.display.set_mode((s_width,s_height))
 # pygame.display.set_caption('Tetris')
-# main(win)
+main()
