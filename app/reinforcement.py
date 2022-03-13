@@ -9,7 +9,6 @@ import tensorflow as tf
 from tqdm import tqdm
 import numpy as np
 import os
-from app.tetris import get_shape
 import tetris as env 
 
 REPLAY_MEMORY_SIZE = 50_000
@@ -19,6 +18,8 @@ DISCOUNT = 0.95
 UPDATE_TARGET = 5
 MODEL_NAME = '256*2'
 EPISODES = 20_000
+AGGREGATE_STATS = 50
+MIN_REWARD = 100
 
 epsilon = 1
 EPSILON_DECAY = 0.99975
@@ -142,7 +143,12 @@ class ModifiedTensorBoard(TensorBoard):
                 self.writer.flush()
 
 agent = DQNAgent()
+ep_rewards = []
 for episode in tqdm(range(1,EPISODES + 1),ascii=True,unit='episode'):
+    agent.tensorboard.step = episode
+    episode_reward = 0
+    step = 1
+    
     grid = env.reset()
     current_piece = env.get_shape()
     next_piece = env.get_shape() 
@@ -163,13 +169,31 @@ for episode in tqdm(range(1,EPISODES + 1),ascii=True,unit='episode'):
             action = np.random.randint(0,len(possible_moves))
         
         new_grid, reward, done = env.make_move(possible_moves,action)
+        episode_reward += reward
         agent.update_replay_memory(((grid, current_piece, next_piece), action, reward, done))
         agent.train(done)
 
         grid = env.copy_grid(new_grid)
         current_piece = next_piece
-        next_piece = get_shape()
+        next_piece = env.get_shape()
+        step+=1
 
-        if epsilon > MIN_EPSILON:
-            epsilon *= EPSILON_DECAY
-            epsilon = max(MIN_EPSILON, epsilon)
+    ep_rewards.append(episode_reward)
+    if not episode % AGGREGATE_STATS or episode == 1:
+        average_reward = sum(ep_rewards[-AGGREGATE_STATS:])/len(ep_rewards[-AGGREGATE_STATS:])
+        min_reward = min(ep_rewards[-AGGREGATE_STATS:])
+        max_reward = max(ep_rewards[-AGGREGATE_STATS:])
+        agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=epsilon)
+
+        # Save model, but only when min reward is greater or equal a set value
+        if min_reward >= MIN_REWARD:
+            agent.policy_model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+
+    # Decay epsilon
+    if epsilon > MIN_EPSILON:
+        epsilon *= EPSILON_DECAY
+        epsilon = max(MIN_EPSILON, epsilon)
+        
+    if epsilon > MIN_EPSILON:
+        epsilon *= EPSILON_DECAY
+        epsilon = max(MIN_EPSILON, epsilon)
