@@ -9,6 +9,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import numpy as np
 import os
+from app.tetris import get_shape
 import tetris as env 
 
 REPLAY_MEMORY_SIZE = 50_000
@@ -108,7 +109,6 @@ class DQNAgent:
 
 
 
-
 class ModifiedTensorBoard(TensorBoard):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -145,9 +145,10 @@ class ModifiedTensorBoard(TensorBoard):
 agent = DQNAgent()
 for episode in tqdm(range(1,EPISODES + 1),ascii=True,unit='episode'):
     grid = env.reset()
+    current_piece = env.get_shape()
+    next_piece = env.get_shape() 
     done = False
     while not done:
-        current_piece = env.get_shape()
         possible_moves = env.get_all_possible_moves(grid,current_piece)
         if np.random.random() > epsilon:
             possible_grids = np.array([possible_move[0] for possible_move in possible_moves])
@@ -162,11 +163,13 @@ for episode in tqdm(range(1,EPISODES + 1),ascii=True,unit='episode'):
             action = np.random.randint(0,len(possible_moves))
         
         new_grid, reward, done = env.make_move(possible_moves,action)
-        agent.update_replay_memory((new_grid,reward,done))
+        agent.update_replay_memory(((grid, current_piece, next_piece), action, reward, done))
         agent.train(done)
 
         grid = env.copy_grid(new_grid)
-        
+        current_piece = next_piece
+        next_piece = get_shape()
+
         if epsilon > MIN_EPSILON:
             epsilon *= EPSILON_DECAY
             epsilon = max(MIN_EPSILON, epsilon)
