@@ -82,7 +82,7 @@ class DQNAgent:
                 for next_possible_move in next_possible_moves:
                     next_possible_grid = next_possible_move[0]
                     _ ,bin = env.get_image(next_possible_grid)
-                    temp = self.target_model.predict(bin)[0]
+                    temp = self.target_model.predict(bin.reshape(-1, *bin.shape))[0]
                     if temp > max_future_q:
                         max_future_q = temp
                 target_q = reward + DISCOUNT * max_future_q
@@ -154,7 +154,7 @@ for episode in tqdm(range(1,EPISODES + 1),ascii=True,unit='episode'):
             index = 0
             for i,possible_grid in enumerate(possible_grids):
                 _,bin = env.get_image(possible_grid) 
-                temp = agent.target_model.predict(bin)[0]
+                temp = agent.target_model.predict(bin.reshape(-1, *bin.shape))[0]
                 if temp > max_future_q:
                     index = i
                     max_future_q = temp
