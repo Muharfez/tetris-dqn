@@ -54,11 +54,11 @@ class DQNAgent:
 
         return model
 
-    def update_replay_memory(self,transiiton):
-        self.replay_memory.append(transiiton)
+    def update_replay_memory(self,transition):
+        self.replay_memory.append(transition)
 
     def get_q(self,state):
-        return self.policy_model.predict(np.array(state).reshape(-1,*state.shape))[0]
+        return self.policy_model.predict(np.array(state).reshape(-1,*state))[0]
 
     def train(self, terminal_state):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
@@ -68,17 +68,22 @@ class DQNAgent:
         
         states = np.array([transition[0] for transition in minibatch])
         grids = np.array([state[0] for state in states])
-        
-        next_pieces = np.array([state[1] for state in states])
+        current_pieces = np.array([state[1] for state in states])
+        next_pieces = np.array([state[2] for state in states])
+
         X = []
         Y = [] 
-        for index, (state, reward, done) in enumerate(minibatch):
+        for index, (_, action, reward, done) in enumerate(minibatch):
+            possible_moves = env.get_all_possible_moves(grids[index],current_pieces[index])
+            possible_grids = np.array([possible_move[0] for possible_move in possible_moves])
+            new_grid = possible_grids[action]
+            
             if not done: 
                 max_future_q = -1000
-                possible_grids = env.get_all_possible_moves(grids[index],next_pieces[index])
-                possible_grids = np.array([possible_grid[0] for possible_grid in possible_grids])
-                for possible_grid in possible_grids:
-                    temp = (self.target_model.predict(np.array([possible_grid]))[0])
+                next_possible_moves = env.get_all_possible_moves(new_grid,next_pieces[index])
+                for next_possible_move in next_possible_moves:
+                    next_possible_grid = next_possible_move[0]
+                    temp = (self.target_model.predict(np.array([next_possible_grid]))[0])
                     if temp > max_future_q:
                         max_future_q = temp
                 target_q = reward + DISCOUNT * max_future_q
@@ -88,7 +93,7 @@ class DQNAgent:
             new_reward = target_q
 
             #adjust state
-            X.append(state)
+            X.append(new_grid)
             Y.append(new_reward)
 
         self.policy_model.fit(np.array(X), np.array(Y), batch_size = MINIBATCH_SIZE,
