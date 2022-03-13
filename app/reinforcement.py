@@ -84,7 +84,8 @@ class DQNAgent:
                 next_possible_moves = env.get_all_possible_moves(new_grid,next_pieces[index])
                 for next_possible_move in next_possible_moves:
                     next_possible_grid = next_possible_move[0]
-                    temp = (self.target_model.predict(np.array([next_possible_grid]))[0])
+                    _ ,bin = env.get_image(next_possible_grid)
+                    temp = self.target_model.predict(np.array([bin]))[0]
                     if temp > max_future_q:
                         max_future_q = temp
                 target_q = reward + DISCOUNT * max_future_q
@@ -94,7 +95,8 @@ class DQNAgent:
             new_reward = target_q
 
             #adjust state
-            X.append(new_grid)
+            _ ,bin = env.get_image(new_grid)
+            X.append(bin)
             Y.append(new_reward)
 
         self.policy_model.fit(np.array(X), np.array(Y), batch_size = MINIBATCH_SIZE,
@@ -154,7 +156,8 @@ for episode in tqdm(range(1,EPISODES + 1),ascii=True,unit='episode'):
             possible_grids = np.array([possible_move[0] for possible_move in possible_moves])
             index = 0
             for i,possible_grid in enumerate(possible_grids):
-                temp = agent.get_q(possible_grid)
+                _,bin = env.get_image(possible_grid) 
+                temp = agent.target_model.predict(np.array([bin]))[0]
                 if temp > max_future_q:
                     index = i
                     max_future_q = temp
